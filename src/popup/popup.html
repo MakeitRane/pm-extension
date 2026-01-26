@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalshi Markets Finder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="popup-header">
+      <div class="popup-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="6" fill="#0AC285"/>
+          <path d="M7 12L10.5 15.5L17 8.5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="popup-title">Kalshi Markets Finder</span>
+      </div>
+    </div>
+
+    <!-- Status Section -->
+    <div class="popup-status" id="status-section">
+      <!-- Populated by JavaScript -->
+    </div>
+
+    <!-- API Key Section -->
+    <div class="popup-section" id="apikey-section">
+      <!-- Populated by JavaScript -->
+    </div>
+
+    <!-- Instructions -->
+    <div class="popup-instructions">
+      <div class="instruction-title">How to use:</div>
+      <ol class="instruction-list">
+        <li>Highlight any text on a webpage</li>
+        <li>Press <kbd>Cmd+Shift+K</kbd> (Mac) or <kbd>Ctrl+Shift+K</kbd> (Win)</li>
+        <li>Or right-click and select "Find Markets on Kalshi"</li>
+      </ol>
+    </div>
+
+    <!-- Footer -->
+    <div class="popup-footer">
+      <a href="https://kalshi.com" target="_blank" class="footer-link">Visit Kalshi</a>
+      <span class="footer-version">v1.0.0</span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
