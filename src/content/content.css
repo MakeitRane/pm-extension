@@ -1,0 +1,504 @@
+/* Kalshi Markets Finder - Content Script Styles */
+
+/* Reset and base styles for popup */
+#kalshi-finder-root,
+#kalshi-finder-root * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+}
+
+#kalshi-finder-root {
+  position: fixed;
+  z-index: 2147483647;
+  font-size: 14px;
+  color: #1A1A1A;
+}
+
+/* Popup container */
+.kalshi-popup {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  width: 360px;
+  max-height: 480px;
+  overflow: hidden;
+  animation: kalshi-fade-in 150ms ease-out;
+}
+
+@keyframes kalshi-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header */
+.kalshi-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #E5E7EB;
+  background: #F8F9FA;
+}
+
+.kalshi-popup-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1A1A1A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+.kalshi-popup-title span {
+  color: #0AC285;
+  font-weight: 600;
+}
+
+.kalshi-popup-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #6B7280;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 150ms ease;
+}
+
+.kalshi-popup-close:hover {
+  background: #E5E7EB;
+  color: #1A1A1A;
+}
+
+/* Content area */
+.kalshi-popup-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Loading state */
+.kalshi-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 12px;
+}
+
+.kalshi-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E5E7EB;
+  border-top-color: #0AC285;
+  border-radius: 50%;
+  animation: kalshi-spin 0.8s linear infinite;
+}
+
+@keyframes kalshi-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.kalshi-loading-text {
+  font-size: 13px;
+  color: #6B7280;
+}
+
+/* Error state */
+.kalshi-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 8px;
+  text-align: center;
+}
+
+.kalshi-error-icon {
+  width: 40px;
+  height: 40px;
+  background: #FEE2E2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.kalshi-error-message {
+  font-size: 13px;
+  color: #6B7280;
+  max-width: 280px;
+}
+
+/* No results state */
+.kalshi-no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 8px;
+  text-align: center;
+}
+
+.kalshi-no-results-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.kalshi-no-results-text {
+  font-size: 14px;
+  color: #6B7280;
+}
+
+/* Market card */
+.kalshi-market-card {
+  padding: 12px 16px;
+  border-bottom: 1px solid #F3F4F6;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.kalshi-market-card:hover {
+  background: #F8F9FA;
+}
+
+.kalshi-market-card:last-child {
+  border-bottom: none;
+}
+
+.kalshi-market-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1A1A1A;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.kalshi-market-prices {
+  display: flex;
+  gap: 8px;
+}
+
+.kalshi-price-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.kalshi-price-yes {
+  background: #E6F9F3;
+  color: #0AC285;
+}
+
+.kalshi-price-no {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+/* Market details (expanded view) */
+.kalshi-market-details {
+  padding: 16px;
+  animation: kalshi-fade-in 150ms ease-out;
+}
+
+.kalshi-details-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.kalshi-back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #6B7280;
+  font-size: 18px;
+  transition: all 150ms ease;
+}
+
+.kalshi-back-btn:hover {
+  background: #E5E7EB;
+  color: #1A1A1A;
+}
+
+.kalshi-details-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A1A1A;
+  flex: 1;
+}
+
+.kalshi-details-prices {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kalshi-price-large {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.kalshi-price-large.yes {
+  background: #E6F9F3;
+}
+
+.kalshi-price-large.no {
+  background: #F3F4F6;
+}
+
+.kalshi-price-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
+  margin-bottom: 4px;
+}
+
+.kalshi-price-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.kalshi-price-value.yes {
+  color: #0AC285;
+}
+
+.kalshi-price-value.no {
+  color: #6B7280;
+}
+
+/* Stats grid */
+.kalshi-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kalshi-stat {
+  padding: 8px 12px;
+  background: #F8F9FA;
+  border-radius: 6px;
+}
+
+.kalshi-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.kalshi-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.kalshi-stat-value.up {
+  color: #10B981;
+}
+
+.kalshi-stat-value.down {
+  color: #EF4444;
+}
+
+/* Mini chart */
+.kalshi-chart-container {
+  background: #F8F9FA;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  height: 80px;
+}
+
+.kalshi-chart-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Trade button */
+.kalshi-trade-btn {
+  width: 100%;
+  padding: 12px;
+  background: #0AC285;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.kalshi-trade-btn:hover {
+  background: #09B078;
+}
+
+/* API Key Modal */
+.kalshi-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483647;
+  animation: kalshi-fade-in 150ms ease-out;
+}
+
+.kalshi-modal {
+  background: #FFFFFF;
+  border-radius: 16px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.kalshi-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.kalshi-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin-bottom: 4px;
+}
+
+.kalshi-modal-subtitle {
+  font-size: 13px;
+  color: #6B7280;
+}
+
+.kalshi-modal-body {
+  padding: 24px;
+}
+
+.kalshi-input-group {
+  margin-bottom: 16px;
+}
+
+.kalshi-input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1A1A1A;
+  margin-bottom: 6px;
+}
+
+.kalshi-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 150ms ease;
+}
+
+.kalshi-input:focus {
+  outline: none;
+  border-color: #0AC285;
+}
+
+.kalshi-input.error {
+  border-color: #EF4444;
+}
+
+.kalshi-input-error {
+  font-size: 12px;
+  color: #EF4444;
+  margin-top: 4px;
+}
+
+.kalshi-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kalshi-btn-primary {
+  width: 100%;
+  padding: 12px;
+  background: #0AC285;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.kalshi-btn-primary:hover {
+  background: #09B078;
+}
+
+.kalshi-btn-primary:disabled {
+  background: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.kalshi-skip-link {
+  text-align: center;
+  font-size: 13px;
+  color: #6B7280;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.kalshi-skip-link:hover {
+  color: #0AC285;
+}
+
+/* Scrollbar styling */
+.kalshi-popup-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kalshi-popup-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kalshi-popup-content::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 3px;
+}
+
+.kalshi-popup-content::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}

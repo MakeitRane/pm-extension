@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Icon Generator - Kalshi Markets Finder</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #1a1a1a;
+    }
+    .icon-preview {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    .icon-item {
+      text-align: center;
+    }
+    .icon-item canvas {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .icon-item p {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #666;
+    }
+    button {
+      background: #0AC285;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #09B078;
+    }
+    .instructions {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .instructions ol {
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Kalshi Markets Finder - Icon Generator</h1>
+  <p>Generate extension icons with the Kalshi green branding.</p>
+
+  <div class="icon-preview" id="preview"></div>
+
+  <div>
+    <button onclick="downloadIcon(16)">Download 16x16</button>
+    <button onclick="downloadIcon(32)">Download 32x32</button>
+    <button onclick="downloadIcon(48)">Download 48x48</button>
+    <button onclick="downloadIcon(128)">Download 128x128</button>
+    <button onclick="downloadAll()">Download All</button>
+  </div>
+
+  <div class="instructions">
+    <h3>Instructions:</h3>
+    <ol>
+      <li>Click each "Download" button to save the icon</li>
+      <li>Move the downloaded files to <code>assets/icons/</code></li>
+      <li>Rename them to:
+        <ul>
+          <li><code>icon-16.png</code></li>
+          <li><code>icon-32.png</code></li>
+          <li><code>icon-48.png</code></li>
+          <li><code>icon-128.png</code></li>
+        </ul>
+      </li>
+      <li>Reload the extension in Chrome</li>
+    </ol>
+  </div>
+
+  <script>
+    const sizes = [16, 32, 48, 128];
+    const kalshiGreen = '#0AC285';
+
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      canvas.width = size;
+      canvas.height = size;
+
+      // Background with rounded corners
+      const radius = size * 0.2;
+      ctx.fillStyle = kalshiGreen;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fill();
+
+      // Draw "K" letter
+      ctx.fillStyle = 'white';
+      ctx.font = `bold ${size * 0.6}px -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('K', size / 2, size / 2 + size * 0.05);
+    }
+
+    function createPreview() {
+      const preview = document.getElementById('preview');
+      sizes.forEach(size => {
+        const div = document.createElement('div');
+        div.className = 'icon-item';
+
+        const canvas = document.createElement('canvas');
+        canvas.id = `icon-${size}`;
+        drawIcon(canvas, size);
+
+        const p = document.createElement('p');
+        p.textContent = `${size}x${size}`;
+
+        div.appendChild(canvas);
+        div.appendChild(p);
+        preview.appendChild(div);
+      });
+    }
+
+    function downloadIcon(size) {
+      const canvas = document.getElementById(`icon-${size}`);
+      const link = document.createElement('a');
+      link.download = `icon-${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function downloadAll() {
+      sizes.forEach((size, index) => {
+        setTimeout(() => downloadIcon(size), index * 200);
+      });
+    }
+
+    // Initialize
+    createPreview();
+  </script>
+</body>
+</html>
