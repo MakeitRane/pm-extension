@@ -5,12 +5,15 @@
 
 // State
 let popupRoot = null;
+let selectionButton = null;
 let currentView = 'list'; // 'list' | 'details' | 'loading' | 'error' | 'apikey'
 let currentMarkets = [];
 let selectedMarket = null;
 let marketDetails = null;
 let isFirstUse = false;
 let userMode = 'new';
+let lastSelectedText = '';
+let lastSelectionRect = null;
 
 /**
  * Initialize content script
@@ -18,6 +21,197 @@ let userMode = 'new';
 function init() {
   // Listen for messages from background script
   chrome.runtime.onMessage.addListener(handleMessage);
+
+  // Show floating button on text selection
+  document.addEventListener('mouseup', handleMouseUp);
+}
+
+/**
+ * Handle mouseup - show floating button if text is selected
+ */
+function handleMouseUp(e) {
+  // Ignore if clicking on our own UI
+  if (popupRoot?.contains(e.target) || selectionButton?.contains(e.target)) return;
+
+  // Ignore right-clicks (context menu handles those)
+  if (e.button === 2) return;
+
+  // Small delay to let selection finalize
+  setTimeout(() => {
+    const text = getSelectedText();
+    if (text && text.length >= 2) {
+      showSelectionButton();
+    } else {
+      removeSelectionButton();
+    }
+  }, 10);
+}
+
+/**
+ * Get selected text from the page - handles all text types
+ * Supports: regular text, input/textarea, contentEditable, multi-line, etc.
+ */
+function getSelectedText() {
+  let text = '';
+
+  // Check for standard text selection (works for regular text and contentEditable)
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+    text = selection.toString();
+  }
+
+  // If no standard selection, check active input/textarea
+  if (!text) {
+    const activeEl = document.activeElement;
+    if (activeEl) {
+      if (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') {
+        const start = activeEl.selectionStart;
+        const end = activeEl.selectionEnd;
+        if (typeof start === 'number' && typeof end === 'number' && start !== end) {
+          text = activeEl.value.substring(start, end);
+        }
+      }
+    }
+  }
+
+  // Normalize the text: collapse whitespace, trim
+  text = text
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\t+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Truncate very long selections to keep search queries reasonable
+  if (text.length > 500) {
+    text = text.substring(0, 500);
+  }
+
+  return text;
+}
+
+/**
+ * Get selection rect in viewport coordinates
+ * Handles both standard selections and input/textarea selections
+ */
+function getSelectionRect() {
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    if (rect.width > 0 || rect.height > 0) {
+      return rect;
+    }
+  }
+
+  // Fallback for input/textarea
+  const activeEl = document.activeElement;
+  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+    return activeEl.getBoundingClientRect();
+  }
+
+  return null;
+}
+
+/**
+ * Show floating "Find Markets on Kalshi" button near selection
+ */
+function showSelectionButton() {
+  removeSelectionButton();
+
+  const text = getSelectedText();
+  if (!text || text.length < 2) return;
+
+  lastSelectedText = text;
+
+  const rect = getSelectionRect();
+  if (!rect) return;
+
+  // Store for popup positioning (viewport coordinates)
+  lastSelectionRect = {
+    top: rect.top,
+    bottom: rect.bottom,
+    left: rect.left,
+    right: rect.right
+  };
+
+  selectionButton = document.createElement('div');
+  selectionButton.id = 'kalshi-selection-btn';
+
+  selectionButton.innerHTML = `
+    <button class="kalshi-find-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Find Markets on Kalshi
+    </button>
+  `;
+
+  // Position below selection using absolute coords (stays with text on scroll)
+  let top = rect.bottom + window.scrollY + 6;
+  let left = rect.left + window.scrollX;
+
+  const btnWidth = 220;
+  if (left + btnWidth > window.innerWidth + window.scrollX) {
+    left = window.innerWidth + window.scrollX - btnWidth - 16;
+  }
+  if (left < window.scrollX + 16) {
+    left = window.scrollX + 16;
+  }
+
+  selectionButton.style.top = `${top}px`;
+  selectionButton.style.left = `${left}px`;
+
+  document.body.appendChild(selectionButton);
+
+  // Prevent mousedown from clearing the text selection
+  selectionButton.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+  });
+
+  selectionButton.querySelector('.kalshi-find-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    handleButtonClick();
+  });
+}
+
+/**
+ * Remove the floating selection button
+ */
+function removeSelectionButton() {
+  if (selectionButton) {
+    selectionButton.remove();
+    selectionButton = null;
+  }
+}
+
+/**
+ * Handle "Find Markets on Kalshi" button click
+ */
+async function handleButtonClick() {
+  const query = lastSelectedText;
+  if (!query) return;
+
+  removeSelectionButton();
+
+  // Get user state from service worker
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'GET_USER_STATE' });
+    const payload = response?.payload || {};
+
+    isFirstUse = payload.isFirstUse || false;
+    userMode = payload.userMode || 'free';
+
+    if (isFirstUse) {
+      showApiKeyModal(query);
+    } else {
+      showPopup(query);
+    }
+  } catch (error) {
+    // Fallback: just show popup directly
+    showPopup(query);
+  }
 }
 
 /**
@@ -28,8 +222,18 @@ function handleMessage(message, sender, sendResponse) {
 
   switch (type) {
     case 'GET_SELECTION_AND_SEARCH':
-      const selectedText = window.getSelection().toString().trim();
+      const selectedText = getSelectedText();
       if (selectedText) {
+        // Store selection rect before it might get cleared
+        const rect = getSelectionRect();
+        if (rect) {
+          lastSelectionRect = {
+            top: rect.top,
+            bottom: rect.bottom,
+            left: rect.left,
+            right: rect.right
+          };
+        }
         chrome.runtime.sendMessage({
           type: 'TRIGGER_SEARCH',
           payload: { query: selectedText }
@@ -41,6 +245,19 @@ function handleMessage(message, sender, sendResponse) {
       isFirstUse = payload.isFirstUse;
       userMode = payload.userMode;
 
+      // Store selection rect if still available
+      const selRect = getSelectionRect();
+      if (selRect) {
+        lastSelectionRect = {
+          top: selRect.top,
+          bottom: selRect.bottom,
+          left: selRect.left,
+          right: selRect.right
+        };
+      }
+
+      removeSelectionButton();
+
       if (isFirstUse) {
         showApiKeyModal(payload.query);
       } else {
@@ -51,23 +268,33 @@ function handleMessage(message, sender, sendResponse) {
 }
 
 /**
- * Get popup position based on text selection
+ * Get popup position based on selection
+ * Uses viewport coordinates for position:fixed
  */
 function getPopupPosition() {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) {
+  let rect = null;
+
+  // Try active selection first
+  const selRect = getSelectionRect();
+  if (selRect) {
+    rect = selRect;
+  }
+
+  // Fall back to stored selection rect
+  if (!rect && lastSelectionRect) {
+    rect = lastSelectionRect;
+  }
+
+  if (!rect) {
     return { top: 100, left: 100 };
   }
 
-  const range = selection.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
+  // position:fixed uses viewport coordinates - no scroll offset
+  let top = rect.bottom + 8;
+  let left = rect.left;
 
-  let top = rect.bottom + window.scrollY + 8;
-  let left = rect.left + window.scrollX;
-
-  // Keep within viewport
-  const popupWidth = 360;
-  const popupHeight = 400;
+  const popupWidth = 420;
+  const popupHeight = 480;
 
   if (left + popupWidth > window.innerWidth) {
     left = window.innerWidth - popupWidth - 16;
@@ -77,8 +304,8 @@ function getPopupPosition() {
   }
 
   // If popup would go below viewport, show above selection
-  if (top + popupHeight > window.scrollY + window.innerHeight) {
-    top = rect.top + window.scrollY - popupHeight - 8;
+  if (top + popupHeight > window.innerHeight) {
+    top = rect.top - popupHeight - 8;
   }
 
   return { top, left };
@@ -118,6 +345,7 @@ function removePopup() {
     popupRoot.remove();
     popupRoot = null;
   }
+  removeSelectionButton();
   currentView = 'list';
   currentMarkets = [];
   selectedMarket = null;
@@ -155,9 +383,15 @@ async function searchMarkets(query) {
       payload: { query, limit: 5 }
     });
 
+    if (!response || !response.payload) {
+      console.error('Search: empty response from service worker', response);
+      renderError('BACKEND_UNAVAILABLE');
+      return;
+    }
+
     if (response.payload.error) {
       renderError(response.payload.error);
-    } else if (response.payload.markets.length === 0) {
+    } else if (!response.payload.markets || response.payload.markets.length === 0) {
       renderNoResults();
     } else {
       currentMarkets = response.payload.markets;
@@ -165,7 +399,13 @@ async function searchMarkets(query) {
     }
   } catch (error) {
     console.error('Search error:', error);
-    renderError('UNKNOWN_ERROR');
+    // Check if this is a disconnected extension error (stale content script after reload)
+    if (error?.message?.includes('Extension context invalidated') ||
+        error?.message?.includes('Receiving end does not exist')) {
+      renderError('EXTENSION_RELOADED');
+    } else {
+      renderError('UNKNOWN_ERROR');
+    }
   }
 }
 
@@ -187,6 +427,7 @@ function renderLoading(query) {
           <div class="kalshi-loading-text">Searching markets...</div>
         </div>
       </div>
+      <div class="kalshi-popup-footer">Not Financial Advice</div>
     </div>
   `;
 
@@ -202,7 +443,14 @@ function renderError(errorType) {
     'NETWORK_ERROR': 'Unable to connect. Please check your internet connection.',
     'RATE_LIMITED': 'Too many requests. Please wait a moment and try again.',
     'SERVER_ERROR': 'Kalshi servers are experiencing issues. Please try again later.',
-    'UNKNOWN_ERROR': 'Something went wrong. Please try again.'
+    'UNKNOWN_ERROR': 'Something went wrong. Please try again.',
+    'BACKEND_UNAVAILABLE': 'Search backend is not running. Please start the Python server.',
+    'EXTENSION_RELOADED': 'Extension was updated. Please refresh this page and try again.',
+    // Gemini-specific error messages
+    'GEMINI_RATE_LIMITED': 'AI rate limit reached. Please wait a moment and try again.',
+    'GEMINI_AUTH_ERROR': 'AI service authentication failed. Please contact support.',
+    'GEMINI_UNAVAILABLE': 'AI service is temporarily unavailable. Please try again later.',
+    'GEMINI_NOT_CONFIGURED': 'AI service is not configured. Please contact support.'
   };
 
   const message = errorMessages[errorType] || errorMessages['UNKNOWN_ERROR'];
@@ -230,20 +478,87 @@ function renderNoResults() {
 }
 
 /**
- * Render market list
+ * Render market list - displays event groups with expandable outcomes
  */
 function renderMarketList(query) {
   const truncatedQuery = query.length > 30 ? query.substring(0, 30) + '...' : query;
 
-  const marketsHtml = currentMarkets.map((market, index) => `
-    <div class="kalshi-market-card" data-index="${index}">
-      <div class="kalshi-market-title">${escapeHtml(market.title || market.ticker)}</div>
-      <div class="kalshi-market-prices">
-        <span class="kalshi-price-pill kalshi-price-yes">Yes ${formatPrice(market.yes_ask || market.last_price)}</span>
-        <span class="kalshi-price-pill kalshi-price-no">No ${formatPrice(market.no_ask || (100 - (market.last_price || 50)))}</span>
+  // currentMarkets is now an array of event groups
+  const eventGroupsHtml = currentMarkets.map((eventGroup, groupIndex) => {
+    const eventTitle = eventGroup.event_title || 'Unknown Event';
+    const explanation = eventGroup.explanation || '';
+    const markets = eventGroup.markets || [];
+    const hasMultipleOutcomes = markets.length > 1;
+
+    // Render explanation if available
+    const explanationHtml = explanation
+      ? `<div class="kalshi-market-explanation">${escapeHtml(explanation)}</div>`
+      : '';
+
+    // Render outcome rows for each market in the group
+    const outcomesHtml = markets.map((market, marketIndex) => {
+      const outcomeTitle = market.outcome_title || market.ticker;
+      const yesPrice = formatPrice(market.last_price || market.yes_ask || market.yes_bid);
+
+      return `
+        <div class="kalshi-outcome-row" data-group="${groupIndex}" data-market="${marketIndex}">
+          <span class="kalshi-outcome-name">${escapeHtml(outcomeTitle)}</span>
+          <span class="kalshi-outcome-odds">${yesPrice}</span>
+        </div>
+      `;
+    }).join('');
+
+    // Determine if we should show expanded view or collapsed
+    const showExpanded = markets.length <= 3;
+    const visibleOutcomes = showExpanded ? outcomesHtml : markets.slice(0, 2).map((market, marketIndex) => {
+      const outcomeTitle = market.outcome_title || market.ticker;
+      const yesPrice = formatPrice(market.last_price || market.yes_ask || market.yes_bid);
+
+      return `
+        <div class="kalshi-outcome-row" data-group="${groupIndex}" data-market="${marketIndex}">
+          <span class="kalshi-outcome-name">${escapeHtml(outcomeTitle)}</span>
+          <span class="kalshi-outcome-odds">${yesPrice}</span>
+        </div>
+      `;
+    }).join('');
+
+    const expandButton = !showExpanded && markets.length > 2
+      ? `<button class="kalshi-expand-btn" data-group="${groupIndex}">+${markets.length - 2} more outcomes</button>`
+      : '';
+
+    const hiddenOutcomes = !showExpanded && markets.length > 2
+      ? `<div class="kalshi-hidden-outcomes" data-group="${groupIndex}" style="display: none;">
+          ${markets.slice(2).map((market, marketIndex) => {
+            const outcomeTitle = market.outcome_title || market.ticker;
+            const yesPrice = formatPrice(market.last_price || market.yes_ask || market.yes_bid);
+
+            return `
+              <div class="kalshi-outcome-row" data-group="${groupIndex}" data-market="${marketIndex + 2}">
+                <span class="kalshi-outcome-name">${escapeHtml(outcomeTitle)}</span>
+                <span class="kalshi-outcome-odds">${yesPrice}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>`
+      : '';
+
+    return `
+      <div class="kalshi-event-card" data-group="${groupIndex}">
+        <div class="kalshi-event-header">
+          <div class="kalshi-event-title">${escapeHtml(eventTitle)}</div>
+        </div>
+        ${explanationHtml}
+        <div class="kalshi-outcomes-container">
+          ${showExpanded ? outcomesHtml : visibleOutcomes}
+          ${hiddenOutcomes}
+          ${expandButton}
+        </div>
+        <div class="kalshi-event-footer">
+          ${hasMultipleOutcomes ? `<span class="kalshi-outcome-count">${markets.length} outcomes</span>` : ''}
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   popupRoot.innerHTML = `
     <div class="kalshi-popup">
@@ -252,19 +567,44 @@ function renderMarketList(query) {
         <button class="kalshi-popup-close" aria-label="Close">&times;</button>
       </div>
       <div class="kalshi-popup-content">
-        ${marketsHtml}
+        ${eventGroupsHtml}
       </div>
+      <div class="kalshi-popup-footer">Not Financial Advice</div>
     </div>
   `;
 
   // Add event listeners
   popupRoot.querySelector('.kalshi-popup-close').addEventListener('click', removePopup);
 
-  popupRoot.querySelectorAll('.kalshi-market-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const index = parseInt(card.dataset.index);
-      selectedMarket = currentMarkets[index];
-      loadMarketDetails(selectedMarket.ticker);
+  // Handle outcome row clicks - open market URL
+  popupRoot.querySelectorAll('.kalshi-outcome-row').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const groupIndex = parseInt(chip.dataset.group);
+      const marketIndex = parseInt(chip.dataset.market);
+      const eventGroup = currentMarkets[groupIndex];
+      const market = eventGroup.markets[marketIndex];
+
+      // Open the Kalshi market page in a new tab
+      const marketUrl = market.market_url || `https://kalshi.com/markets/${market.ticker}`;
+      window.open(marketUrl, '_blank');
+    });
+  });
+
+  // Handle expand button clicks
+  popupRoot.querySelectorAll('.kalshi-expand-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const groupIndex = btn.dataset.group;
+      const hiddenOutcomes = popupRoot.querySelector(`.kalshi-hidden-outcomes[data-group="${groupIndex}"]`);
+
+      if (hiddenOutcomes) {
+        const isHidden = hiddenOutcomes.style.display === 'none';
+        hiddenOutcomes.style.display = isHidden ? 'flex' : 'none';
+        btn.textContent = isHidden
+          ? 'Show less'
+          : `+${currentMarkets[groupIndex].markets.length - 2} more outcomes`;
+      }
     });
   });
 }
@@ -280,6 +620,12 @@ async function loadMarketDetails(ticker) {
       type: 'GET_MARKET_DETAILS',
       payload: { ticker }
     });
+
+    if (!response || !response.payload) {
+      console.error('Details: empty response from service worker', response);
+      renderError('BACKEND_UNAVAILABLE');
+      return;
+    }
 
     if (response.payload.error) {
       renderError(response.payload.error);
@@ -313,7 +659,7 @@ function renderMarketDetails() {
   const market = marketDetails.market || selectedMarket;
   const candles = marketDetails.candles || [];
 
-  const yesPrice = market.yes_ask || market.last_price || 50;
+  const yesPrice = market.last_price || market.yes_ask || market.yes_bid || 50;
   const noPrice = market.no_ask || (100 - yesPrice);
 
   // Calculate 24h change (mock if no data)
@@ -386,7 +732,8 @@ function renderMarketDetails() {
     if (userMode === 'free' || userMode === 'new') {
       showApiKeyModal(null, true);
     } else {
-      const url = `https://kalshi.com/markets/${market.ticker}`;
+      // Use the market_url from the API if available, otherwise fall back to ticker-only URL
+      const url = market.market_url || `https://kalshi.com/markets/${market.ticker}`;
       window.open(url, '_blank');
     }
   });
@@ -522,7 +869,8 @@ function showApiKeyModal(query = null, isTradeRedirect = false) {
         modalOverlay.remove();
 
         if (isTradeRedirect && selectedMarket) {
-          const url = `https://kalshi.com/markets/${selectedMarket.ticker}`;
+          // Use the market_url from the API if available, otherwise fall back to ticker-only URL
+          const url = selectedMarket.market_url || `https://kalshi.com/markets/${selectedMarket.ticker}`;
           window.open(url, '_blank');
         } else if (query) {
           showPopup(query);
@@ -578,7 +926,7 @@ function showApiKeyModal(query = null, isTradeRedirect = false) {
  */
 function formatPrice(price) {
   if (price === null || price === undefined) return '--';
-  return `${Math.round(price)}¢`;
+  return `${Math.round(price)}%`;
 }
 
 /**

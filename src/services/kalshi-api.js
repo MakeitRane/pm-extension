@@ -1,16 +1,12 @@
 /**
  * Kalshi API Service
- * Handles all communication with the Kalshi API
+ * Handles communication with the Python backend for semantic search
+ * and direct Kalshi API calls for market details
  */
 
-const API_BASE_URL = 'https://api.elections.kalshi.com/trade-api/v2';
-
-// Cache for market data to reduce API calls
-const marketCache = {
-  data: null,
-  timestamp: null,
-  TTL: 60000 // 1 minute cache
-};
+// Backend URL - change this if running on different port/host
+const BACKEND_URL = 'http://localhost:5001';
+const KALSHI_API_URL = 'https://api.elections.kalshi.com/trade-api/v2';
 
 /**
  * Error types for categorized error handling
@@ -20,7 +16,13 @@ export const ErrorTypes = {
   NETWORK_ERROR: 'NETWORK_ERROR',
   RATE_LIMITED: 'RATE_LIMITED',
   SERVER_ERROR: 'SERVER_ERROR',
-  UNKNOWN_ERROR: 'UNKNOWN_ERROR'
+  BACKEND_UNAVAILABLE: 'BACKEND_UNAVAILABLE',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+  // Gemini-specific errors
+  GEMINI_RATE_LIMITED: 'GEMINI_RATE_LIMITED',
+  GEMINI_AUTH_ERROR: 'GEMINI_AUTH_ERROR',
+  GEMINI_UNAVAILABLE: 'GEMINI_UNAVAILABLE',
+  GEMINI_NOT_CONFIGURED: 'GEMINI_NOT_CONFIGURED'
 };
 
 /**
@@ -34,37 +36,68 @@ export function getErrorMessage(errorType) {
     [ErrorTypes.NETWORK_ERROR]: 'Unable to connect. Please check your internet connection.',
     [ErrorTypes.RATE_LIMITED]: 'Too many requests. Please wait a moment and try again.',
     [ErrorTypes.SERVER_ERROR]: 'Kalshi servers are experiencing issues. Please try again later.',
-    [ErrorTypes.UNKNOWN_ERROR]: 'Something went wrong. Please try again.'
+    [ErrorTypes.BACKEND_UNAVAILABLE]: 'Search backend is not running. Please start the Python server.',
+    [ErrorTypes.UNKNOWN_ERROR]: 'Something went wrong. Please try again.',
+    // Gemini-specific error messages
+    [ErrorTypes.GEMINI_RATE_LIMITED]: 'AI rate limit reached. Please wait a moment and try again.',
+    [ErrorTypes.GEMINI_AUTH_ERROR]: 'AI service authentication failed. Please check the API key configuration.',
+    [ErrorTypes.GEMINI_UNAVAILABLE]: 'AI service is temporarily unavailable. Please try again later.',
+    [ErrorTypes.GEMINI_NOT_CONFIGURED]: 'AI service is not configured. Please set up the Gemini API key.'
   };
   return messages[errorType] || messages[ErrorTypes.UNKNOWN_ERROR];
 }
 
 /**
- * Parse API error response
- * @param {Response} response
- * @returns {string}
- */
-function parseErrorType(response) {
-  if (response.status === 401 || response.status === 403) {
-    return ErrorTypes.INVALID_API_KEY;
-  }
-  if (response.status === 429) {
-    return ErrorTypes.RATE_LIMITED;
-  }
-  if (response.status >= 500) {
-    return ErrorTypes.SERVER_ERROR;
-  }
-  return ErrorTypes.UNKNOWN_ERROR;
-}
-
-/**
- * Make an authenticated API request
+ * Make a request to the Python backend
  * @param {string} endpoint
- * @param {string|null} apiKey
  * @param {object} options
  * @returns {Promise<object>}
  */
-async function apiRequest(endpoint, apiKey = null, options = {}) {
+async function backendRequest(endpoint, options = {}) {
+  const url = `${BACKEND_URL}${endpoint}`;
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+
+      // Check for Gemini-specific error types from backend
+      if (errorData.error_type) {
+        throw { type: errorData.error_type, message: errorData.error };
+      }
+
+      if (response.status >= 500) {
+        throw { type: ErrorTypes.SERVER_ERROR, status: response.status };
+      }
+
+      throw { type: ErrorTypes.UNKNOWN_ERROR, message: errorData.error };
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error.type) {
+      throw error;
+    }
+    // Network error - backend not running
+    console.error('Backend request failed:', error);
+    throw { type: ErrorTypes.BACKEND_UNAVAILABLE, originalError: error };
+  }
+}
+
+/**
+ * Make a direct request to Kalshi API
+ * @param {string} endpoint
+ * @param {string|null} apiKey
+ * @returns {Promise<object>}
+ */
+async function kalshiRequest(endpoint, apiKey = null) {
   const headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -75,17 +108,19 @@ async function apiRequest(endpoint, apiKey = null, options = {}) {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers
-      }
-    });
+    const response = await fetch(`${KALSHI_API_URL}${endpoint}`, { headers });
 
     if (!response.ok) {
-      const errorType = parseErrorType(response);
-      throw { type: errorType, status: response.status };
+      if (response.status === 401 || response.status === 403) {
+        throw { type: ErrorTypes.INVALID_API_KEY };
+      }
+      if (response.status === 429) {
+        throw { type: ErrorTypes.RATE_LIMITED };
+      }
+      if (response.status >= 500) {
+        throw { type: ErrorTypes.SERVER_ERROR };
+      }
+      throw { type: ErrorTypes.UNKNOWN_ERROR };
     }
 
     return await response.json();
@@ -93,117 +128,33 @@ async function apiRequest(endpoint, apiKey = null, options = {}) {
     if (error.type) {
       throw error;
     }
-    // Network error
     throw { type: ErrorTypes.NETWORK_ERROR, originalError: error };
   }
 }
 
 /**
- * Calculate relevance score for a market based on search query
- * @param {object} market
- * @param {string} query
- * @returns {number}
- */
-function calculateRelevance(market, query) {
-  const queryLower = query.toLowerCase();
-  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
-
-  let score = 0;
-
-  // Check title
-  const titleLower = (market.title || '').toLowerCase();
-  if (titleLower.includes(queryLower)) {
-    score += 100; // Exact phrase match
-  }
-
-  // Check individual words
-  queryWords.forEach(word => {
-    if (titleLower.includes(word)) {
-      score += 10;
-    }
-  });
-
-  // Check subtitle/description
-  const subtitleLower = (market.subtitle || '').toLowerCase();
-  if (subtitleLower.includes(queryLower)) {
-    score += 50;
-  }
-  queryWords.forEach(word => {
-    if (subtitleLower.includes(word)) {
-      score += 5;
-    }
-  });
-
-  // Check category/event
-  const categoryLower = (market.category || '').toLowerCase();
-  const eventTickerLower = (market.event_ticker || '').toLowerCase();
-  queryWords.forEach(word => {
-    if (categoryLower.includes(word) || eventTickerLower.includes(word)) {
-      score += 3;
-    }
-  });
-
-  // Boost active markets
-  if (market.status === 'open') {
-    score += 5;
-  }
-
-  // Boost markets with higher volume
-  if (market.volume && market.volume > 10000) {
-    score += 2;
-  }
-
-  return score;
-}
-
-/**
- * Fetch all markets from Kalshi API
- * @param {string|null} apiKey
- * @returns {Promise<object[]>}
- */
-async function fetchAllMarkets(apiKey = null) {
-  // Check cache
-  if (marketCache.data && marketCache.timestamp &&
-      Date.now() - marketCache.timestamp < marketCache.TTL) {
-    return marketCache.data;
-  }
-
-  const allMarkets = [];
-  let cursor = null;
-  const limit = 200; // Max per request
-
-  // Fetch multiple pages (up to 1000 markets for searching)
-  for (let i = 0; i < 5; i++) {
-    const params = new URLSearchParams({ limit: limit.toString() });
-    if (cursor) {
-      params.append('cursor', cursor);
-    }
-    // Only get open markets
-    params.append('status', 'open');
-
-    const response = await apiRequest(`/markets?${params}`, apiKey);
-
-    if (response.markets) {
-      allMarkets.push(...response.markets);
-    }
-
-    cursor = response.cursor;
-    if (!cursor) break;
-  }
-
-  // Update cache
-  marketCache.data = allMarkets;
-  marketCache.timestamp = Date.now();
-
-  return allMarkets;
-}
-
-/**
- * Search markets by query text
- * @param {string} query - Search query
+ * Search markets using Gemini AI (via Python backend)
+ * Returns event groups with multiple market outcomes
+ *
+ * @param {string} query - Search query (highlighted text)
  * @param {string|null} apiKey - Optional API key
  * @param {number} limit - Max results to return (default 5)
  * @returns {Promise<{markets: object[], error: string|null}>}
+ *
+ * Response format (markets is an array of event groups):
+ * {
+ *   markets: [
+ *     {
+ *       event_ticker: "KXSB-27",
+ *       event_title: "Super Bowl 2027 Winner",
+ *       explanation: "Causal explanation...",
+ *       markets: [
+ *         { ticker: "KXSB-27-KC", outcome_title: "Chiefs", yes_bid: 28, ... },
+ *         { ticker: "KXSB-27-PHI", outcome_title: "Eagles", yes_bid: 18, ... }
+ *       ]
+ *     }
+ *   ]
+ * }
  */
 export async function searchMarkets(query, apiKey = null, limit = 5) {
   try {
@@ -211,25 +162,49 @@ export async function searchMarkets(query, apiKey = null, limit = 5) {
       return { markets: [], error: null };
     }
 
-    const allMarkets = await fetchAllMarkets(apiKey);
+    const response = await backendRequest('/api/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        query: query.trim(),
+        limit,
+        api_key: apiKey
+      })
+    });
 
-    // Score and filter markets
-    const scoredMarkets = allMarkets
-      .map(market => ({
-        ...market,
-        relevanceScore: calculateRelevance(market, query)
-      }))
-      .filter(market => market.relevanceScore > 0)
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, limit);
+    if (!response.success) {
+      throw { type: ErrorTypes.UNKNOWN_ERROR, message: response.error };
+    }
 
-    return { markets: scoredMarkets, error: null };
+    // Response is now an array of event groups
+    // Each group contains event_title, explanation, and markets array
+    const eventGroups = response.data.markets || [];
+
+    return { markets: eventGroups, error: null };
   } catch (error) {
     console.error('Error searching markets:', error);
     return {
       markets: [],
       error: error.type || ErrorTypes.UNKNOWN_ERROR
     };
+  }
+}
+
+/**
+ * Get embedding for text (for debugging/display)
+ * @param {string} text
+ * @returns {Promise<object>}
+ */
+export async function getEmbedding(text) {
+  try {
+    const response = await backendRequest('/api/embed', {
+      method: 'POST',
+      body: JSON.stringify({ text })
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error getting embedding:', error);
+    return null;
   }
 }
 
@@ -241,7 +216,19 @@ export async function searchMarkets(query, apiKey = null, limit = 5) {
  */
 export async function getMarketDetails(ticker, apiKey = null) {
   try {
-    const response = await apiRequest(`/markets/${ticker}`, apiKey);
+    // Try backend first
+    try {
+      const response = await backendRequest(`/api/market/${ticker}`);
+      if (response.success) {
+        return { market: response.data.market, error: null };
+      }
+    } catch (backendError) {
+      // Fall back to direct Kalshi API
+      console.log('Backend unavailable, using direct Kalshi API');
+    }
+
+    // Direct Kalshi API call
+    const response = await kalshiRequest(`/markets/${ticker}`, apiKey);
     return { market: response.market, error: null };
   } catch (error) {
     console.error('Error getting market details:', error);
@@ -253,7 +240,7 @@ export async function getMarketDetails(ticker, apiKey = null) {
 }
 
 /**
- * Get candlestick data for a market
+ * Get candlestick data for a market (direct Kalshi API)
  * @param {string} ticker - Market ticker
  * @param {string|null} apiKey
  * @param {string} period - Candle period (1m, 5m, 1h, 1d)
@@ -261,7 +248,6 @@ export async function getMarketDetails(ticker, apiKey = null) {
  */
 export async function getMarketCandlesticks(ticker, apiKey = null, period = '1d') {
   try {
-    // Get last 30 days of data
     const endTs = Math.floor(Date.now() / 1000);
     const startTs = endTs - (30 * 24 * 60 * 60);
 
@@ -272,11 +258,14 @@ export async function getMarketCandlesticks(ticker, apiKey = null, period = '1d'
       end_ts: endTs.toString()
     });
 
-    const response = await apiRequest(`/series/${ticker}/markets/${ticker}/candlesticks?${params}`, apiKey);
+    const response = await kalshiRequest(
+      `/series/${ticker}/markets/${ticker}/candlesticks?${params}`,
+      apiKey
+    );
+
     return { candles: response.candles || [], error: null };
   } catch (error) {
     console.error('Error getting candlesticks:', error);
-    // Don't fail the whole request if candlesticks fail
     return { candles: [], error: null };
   }
 }
@@ -288,25 +277,90 @@ export async function getMarketCandlesticks(ticker, apiKey = null, period = '1d'
  */
 export async function validateApiKey(apiKey) {
   try {
-    // Try to fetch account balance - requires valid auth
-    await apiRequest('/portfolio/balance', apiKey);
+    await kalshiRequest('/portfolio/balance', apiKey);
     return { valid: true, error: null };
   } catch (error) {
     if (error.type === ErrorTypes.INVALID_API_KEY) {
       return { valid: false, error: ErrorTypes.INVALID_API_KEY };
     }
-    // Other errors don't necessarily mean invalid key
     return { valid: true, error: error.type };
   }
 }
 
 /**
- * Get the Kalshi market URL for a ticker
- * @param {string} ticker
- * @returns {string}
+ * Check if backend is available
+ * @returns {Promise<boolean>}
  */
-export function getMarketUrl(ticker) {
-  return `https://kalshi.com/markets/${ticker}`;
+export async function checkBackendHealth() {
+  try {
+    const response = await backendRequest('/api/health');
+    return response.status === 'ok';
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Refresh the backend's market cache
+ * @param {string|null} apiKey
+ * @returns {Promise<boolean>}
+ */
+export async function refreshMarketCache(apiKey = null) {
+  try {
+    const response = await backendRequest('/api/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ api_key: apiKey })
+    });
+    return response.success;
+  } catch (error) {
+    console.error('Error refreshing cache:', error);
+    return false;
+  }
+}
+
+/**
+ * Generate URL-friendly slug from text
+ * @param {string} text - Text to convert (e.g., "UFC Fight")
+ * @returns {string} - URL-friendly slug (e.g., "ufc-fight")
+ */
+function slugify(text) {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')      // Replace spaces/underscores with hyphens
+    .replace(/[^a-z0-9\-]/g, '')  // Remove non-alphanumeric chars except hyphens
+    .replace(/-+/g, '-')          // Remove consecutive hyphens
+    .replace(/^-|-$/g, '');       // Remove leading/trailing hyphens
+}
+
+/**
+ * Get the Kalshi market URL for a market object
+ * @param {object} market - Market object with ticker, event_ticker, and optionally event_title
+ * @returns {string} - Full Kalshi market URL
+ */
+export function getMarketUrl(market) {
+  // If market_url is already provided by the backend, use it
+  if (market.market_url) {
+    return market.market_url;
+  }
+
+  const ticker = market.ticker || '';
+  const eventTicker = market.event_ticker || '';
+
+  if (!ticker) {
+    return 'https://kalshi.com/markets';
+  }
+
+  if (!eventTicker) {
+    // Fallback to simple URL if no event ticker
+    return `https://kalshi.com/markets/${ticker}`;
+  }
+
+  // Generate event slug from event title/subtitle if available
+  const eventTitle = market.event_title || market.event_sub_title || '';
+  const eventSlug = eventTitle ? slugify(eventTitle) : eventTicker;
+
+  return `https://kalshi.com/markets/${eventTicker}/${eventSlug}/${ticker}`;
 }
 
 /**

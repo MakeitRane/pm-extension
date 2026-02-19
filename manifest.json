@@ -10,7 +10,8 @@
   ],
   "host_permissions": [
     "https://api.elections.kalshi.com/*",
-    "https://trading-api.kalshi.com/*"
+    "https://trading-api.kalshi.com/*",
+    "http://localhost:5001/*"
   ],
   "background": {
     "service_worker": "src/background/service-worker.js",
