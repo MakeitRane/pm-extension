@@ -1,0 +1,13 @@
+# Environment variables
+backend/.env
+
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+
+# Playwright MCP
+.playwright-mcp/

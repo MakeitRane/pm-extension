@@ -1,66 +1,81 @@
 /* Kalshi Markets Finder - Content Script Styles */
+/* Design: Kalshi.com native design system */
 
-/* Reset and base styles for popup */
+/* ============================================
+   RESET & BASE
+   ============================================ */
+
 #kalshi-finder-root,
 #kalshi-finder-root * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #kalshi-finder-root {
   position: fixed;
   z-index: 2147483647;
   font-size: 14px;
-  color: #1A1A1A;
+  color: #000000e6;
 }
 
-/* Popup container */
+/* ============================================
+   POPUP CONTAINER
+   ============================================ */
+
 .kalshi-popup {
-  background: #FFFFFF;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  width: 360px;
-  max-height: 480px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px #0000000d,
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    0 20px 48px rgba(0, 0, 0, 0.06);
+  width: 420px;
+  max-height: 560px;
   overflow: hidden;
-  animation: kalshi-fade-in 150ms ease-out;
+  animation: kalshi-popup-enter 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes kalshi-fade-in {
+@keyframes kalshi-popup-enter {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-6px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
-/* Header */
+/* ============================================
+   HEADER
+   ============================================ */
+
 .kalshi-popup-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #E5E7EB;
-  background: #F8F9FA;
+  padding: 14px 16px;
+  border-bottom: 1px solid #0000000d;
+  background: #fff;
 }
 
 .kalshi-popup-title {
   font-size: 13px;
-  font-weight: 600;
-  color: #1A1A1A;
-  white-space: nowrap;
+  font-weight: 500;
+  color: #00000080;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 280px;
+  white-space: nowrap;
+  max-width: 360px;
 }
 
 .kalshi-popup-title span {
-  color: #0AC285;
+  color: #000000e6;
   font-weight: 600;
 }
 
@@ -68,42 +83,68 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: #6B7280;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #0000004d;
   font-size: 18px;
   line-height: 1;
   transition: all 150ms ease;
+  flex-shrink: 0;
 }
 
 .kalshi-popup-close:hover {
-  background: #E5E7EB;
-  color: #1A1A1A;
+  background: #00000008;
+  color: #000000e6;
 }
 
-/* Content area */
+/* ============================================
+   CONTENT AREA
+   ============================================ */
+
 .kalshi-popup-content {
-  max-height: 400px;
+  max-height: 480px;
   overflow-y: auto;
+  padding: 8px;
 }
 
-/* Loading state */
+/* ============================================
+   FOOTER DISCLAIMER
+   ============================================ */
+
+.kalshi-popup-footer {
+  padding: 8px 16px;
+  border-top: 1px solid #0000000d;
+  font-size: 10px;
+  font-weight: 500;
+  color: #0000004d;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+/* ============================================
+   LOADING STATE
+   ============================================ */
+
 .kalshi-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
-  gap: 12px;
+  padding: 48px 32px;
+  gap: 16px;
 }
 
 .kalshi-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #E5E7EB;
-  border-top-color: #0AC285;
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid #0ac28529;
+  border-top-color: #28cc95;
   border-radius: 50%;
-  animation: kalshi-spin 0.8s linear infinite;
+  animation: kalshi-spin 0.7s linear infinite;
 }
 
 @keyframes kalshi-spin {
@@ -114,83 +155,316 @@
 
 .kalshi-loading-text {
   font-size: 13px;
-  color: #6B7280;
+  color: #00000080;
 }
 
-/* Error state */
+/* ============================================
+   ERROR STATE
+   ============================================ */
+
 .kalshi-error {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
-  gap: 8px;
+  padding: 48px 32px;
+  gap: 12px;
   text-align: center;
 }
 
 .kalshi-error-icon {
-  width: 40px;
-  height: 40px;
-  background: #FEE2E2;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  background: #d916670f;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #d91667;
 }
 
 .kalshi-error-message {
   font-size: 13px;
-  color: #6B7280;
-  max-width: 280px;
+  color: #00000080;
+  max-width: 300px;
+  line-height: 1.5;
 }
 
-/* No results state */
+/* ============================================
+   NO RESULTS STATE
+   ============================================ */
+
 .kalshi-no-results {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: 48px 32px;
   gap: 8px;
   text-align: center;
 }
 
 .kalshi-no-results-icon {
-  font-size: 32px;
-  opacity: 0.5;
+  font-size: 28px;
+  opacity: 0.4;
 }
 
 .kalshi-no-results-text {
   font-size: 14px;
-  color: #6B7280;
+  color: #00000080;
+  font-weight: 500;
 }
 
-/* Market card */
-.kalshi-market-card {
-  padding: 12px 16px;
-  border-bottom: 1px solid #F3F4F6;
+/* ============================================
+   EVENT CARD
+   ============================================ */
+
+.kalshi-event-card {
+  padding: 16px 16px 12px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  border: 1px solid #0000001a;
+  background: #fff;
+  transition: border-color 200ms ease;
+}
+
+.kalshi-event-card:last-child {
+  margin-bottom: 0;
+}
+
+.kalshi-event-card:hover {
+  border-color: #00000029;
+}
+
+/* Event header */
+.kalshi-event-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kalshi-event-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000e6;
+  flex: 1;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+/* Event footer */
+.kalshi-event-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.kalshi-outcome-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: #0000004d;
+}
+
+/* ============================================
+   CAUSAL EXPLANATION
+   ============================================ */
+
+.kalshi-market-explanation {
+  margin-top: 4px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: #0000000d;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #00000080;
+  line-height: 1.5;
+}
+
+/* ============================================
+   OUTCOMES CONTAINER
+   ============================================ */
+
+.kalshi-outcomes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.kalshi-hidden-outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  animation: kalshi-fade-in 200ms ease-out;
+}
+
+@keyframes kalshi-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   OUTCOME ROW
+   ============================================ */
+
+.kalshi-outcome-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 150ms ease;
 }
 
-.kalshi-market-card:hover {
-  background: #F8F9FA;
+.kalshi-outcome-row:not(:last-child) {
+  border-bottom: 1px solid #00000008;
+}
+
+.kalshi-outcome-row:hover {
+  background: #0ac28514;
+}
+
+.kalshi-outcome-name {
+  font-size: 13px;
+  font-weight: 400;
+  color: #000000e6;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+
+.kalshi-outcome-odds {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000000e6;
+  border: 1px solid #0AC285;
+  border-radius: 100px;
+  padding: 2px 10px;
+  min-width: 48px;
+  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+/* ============================================
+   LEGACY OUTCOME CHIP (kept for compatibility)
+   ============================================ */
+
+.kalshi-outcome-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.kalshi-outcome-chip:not(:last-child) {
+  border-bottom: 1px solid #00000008;
+}
+
+.kalshi-outcome-chip:hover {
+  background: #0ac28514;
+}
+
+.kalshi-outcome-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: #000000e6;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+
+.kalshi-outcome-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000000e6;
+  border: 1px solid #0AC285;
+  border-radius: 100px;
+  padding: 2px 10px;
+  min-width: 48px;
+  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+/* ============================================
+   EXPAND BUTTON
+   ============================================ */
+
+.kalshi-expand-btn {
+  display: block;
+  width: auto;
+  padding: 6px 8px;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0000004d;
+  cursor: pointer;
+  transition: color 150ms ease;
+  font-family: inherit;
+}
+
+.kalshi-expand-btn:hover {
+  color: #0AC285;
+}
+
+/* ============================================
+   LEGACY MARKET CARD (kept for compatibility)
+   ============================================ */
+
+.kalshi-market-card {
+  padding: 16px 16px 12px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  border: 1px solid #0000001a;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 200ms ease;
 }
 
 .kalshi-market-card:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.kalshi-market-card:hover {
+  border-color: #00000029;
+}
+
+.kalshi-market-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .kalshi-market-title {
   font-size: 14px;
-  font-weight: 500;
-  color: #1A1A1A;
-  margin-bottom: 8px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-weight: 600;
+  color: #000000e6;
+  flex: 1;
+  line-height: 1.4;
 }
 
 .kalshi-market-prices {
@@ -202,32 +476,36 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 2px 10px;
+  border-radius: 100px;
   font-size: 13px;
   font-weight: 600;
+  color: #000000e6;
+  background: transparent;
 }
 
 .kalshi-price-yes {
-  background: #E6F9F3;
-  color: #0AC285;
+  border: 1px solid #0AC285;
 }
 
 .kalshi-price-no {
-  background: #F3F4F6;
-  color: #6B7280;
+  border: 1px solid #0000001a;
+  color: #00000080;
 }
 
-/* Market details (expanded view) */
+/* ============================================
+   MARKET DETAILS (expanded view)
+   ============================================ */
+
 .kalshi-market-details {
   padding: 16px;
-  animation: kalshi-fade-in 150ms ease-out;
+  animation: kalshi-fade-in 200ms ease-out;
 }
 
 .kalshi-details-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
 }
 
@@ -235,56 +513,68 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: #6B7280;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #0000004d;
   font-size: 18px;
   transition: all 150ms ease;
+  flex-shrink: 0;
 }
 
 .kalshi-back-btn:hover {
-  background: #E5E7EB;
-  color: #1A1A1A;
+  background: #00000008;
+  color: #000000e6;
 }
 
 .kalshi-details-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1A1A1A;
+  color: #000000e6;
   flex: 1;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 
 .kalshi-details-prices {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 16px;
 }
 
 .kalshi-price-large {
   flex: 1;
   text-align: center;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #0000001a;
 }
 
 .kalshi-price-large.yes {
-  background: #E6F9F3;
+  background: #0ac28514;
+  border-color: #0ac28529;
 }
 
 .kalshi-price-large.no {
-  background: #F3F4F6;
+  background: #00000008;
 }
 
 .kalshi-price-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #6B7280;
+  font-size: 11px;
+  font-weight: 600;
+  color: #00000080;
   margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .kalshi-price-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .kalshi-price-value.yes {
@@ -292,51 +582,52 @@
 }
 
 .kalshi-price-value.no {
-  color: #6B7280;
+  color: #00000080;
 }
 
 /* Stats grid */
 .kalshi-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 16px;
 }
 
 .kalshi-stat {
-  padding: 8px 12px;
-  background: #F8F9FA;
-  border-radius: 6px;
+  padding: 10px 12px;
+  background: #00000008;
+  border-radius: 10px;
 }
 
 .kalshi-stat-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: #6B7280;
+  font-size: 10px;
+  font-weight: 600;
+  color: #00000080;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
+  letter-spacing: 0.06em;
+  margin-bottom: 3px;
 }
 
 .kalshi-stat-value {
   font-size: 14px;
   font-weight: 600;
-  color: #1A1A1A;
+  color: #000000e6;
+  letter-spacing: -0.01em;
 }
 
 .kalshi-stat-value.up {
-  color: #10B981;
+  color: #0AC285;
 }
 
 .kalshi-stat-value.down {
-  color: #EF4444;
+  color: #d91667;
 }
 
 /* Mini chart */
 .kalshi-chart-container {
-  background: #F8F9FA;
-  border-radius: 8px;
-  padding: 12px;
+  background: #00000008;
+  border-radius: 12px;
+  padding: 14px;
   margin-bottom: 16px;
   height: 80px;
 }
@@ -350,99 +641,130 @@
 .kalshi-trade-btn {
   width: 100%;
   padding: 12px;
-  background: #0AC285;
-  color: #FFFFFF;
+  background: #28cc95;
+  color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 100px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: all 150ms ease;
+  font-family: inherit;
 }
 
 .kalshi-trade-btn:hover {
-  background: #09B078;
+  background: #22b884;
+  box-shadow: 0 2px 8px rgba(40, 204, 149, 0.3);
 }
 
-/* API Key Modal */
+.kalshi-trade-btn:active {
+  transform: scale(0.99);
+}
+
+/* ============================================
+   API KEY MODAL
+   ============================================ */
+
 .kalshi-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2147483647;
-  animation: kalshi-fade-in 150ms ease-out;
+  animation: kalshi-overlay-enter 200ms ease-out;
+}
+
+@keyframes kalshi-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .kalshi-modal {
-  background: #FFFFFF;
+  background: #fff;
   border-radius: 16px;
   width: 400px;
   max-width: 90vw;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 0 0 1px #0000000d,
+    0 16px 48px rgba(0, 0, 0, 0.12);
   overflow: hidden;
+  animation: kalshi-popup-enter 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .kalshi-modal-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid #E5E7EB;
+  padding: 24px 24px 16px;
 }
 
 .kalshi-modal-title {
   font-size: 18px;
-  font-weight: 600;
-  color: #1A1A1A;
-  margin-bottom: 4px;
+  font-weight: 700;
+  color: #000000e6;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
 }
 
 .kalshi-modal-subtitle {
   font-size: 13px;
-  color: #6B7280;
+  color: #00000080;
+  line-height: 1.5;
 }
 
 .kalshi-modal-body {
-  padding: 24px;
+  padding: 0 24px 24px;
 }
 
 .kalshi-input-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .kalshi-input-label {
   display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: #1A1A1A;
-  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #00000080;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .kalshi-input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #E5E7EB;
-  border-radius: 8px;
+  padding: 11px 14px;
+  border: 1px solid #0000001a;
+  border-radius: 10px;
   font-size: 14px;
-  transition: border-color 150ms ease;
+  transition: all 150ms ease;
+  background: #00000008;
+  font-family: inherit;
+  color: #000000e6;
 }
 
 .kalshi-input:focus {
   outline: none;
   border-color: #0AC285;
+  background: #fff;
+  box-shadow: 0 0 0 3px #0ac28514;
 }
 
 .kalshi-input.error {
-  border-color: #EF4444;
+  border-color: #d91667;
+  box-shadow: 0 0 0 3px #d916670f;
 }
 
 .kalshi-input-error {
   font-size: 12px;
-  color: #EF4444;
-  margin-top: 4px;
+  color: #d91667;
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 .kalshi-modal-actions {
@@ -454,40 +776,48 @@
 .kalshi-btn-primary {
   width: 100%;
   padding: 12px;
-  background: #0AC285;
-  color: #FFFFFF;
+  background: #28cc95;
+  color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 100px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: all 150ms ease;
+  font-family: inherit;
 }
 
 .kalshi-btn-primary:hover {
-  background: #09B078;
+  background: #22b884;
+  box-shadow: 0 2px 8px rgba(40, 204, 149, 0.3);
 }
 
 .kalshi-btn-primary:disabled {
-  background: #9CA3AF;
+  background: #0000001a;
+  color: #0000004d;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .kalshi-skip-link {
   text-align: center;
   font-size: 13px;
-  color: #6B7280;
+  color: #00000080;
   cursor: pointer;
   transition: color 150ms ease;
+  font-weight: 500;
 }
 
 .kalshi-skip-link:hover {
   color: #0AC285;
 }
 
-/* Scrollbar styling */
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
 .kalshi-popup-content::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .kalshi-popup-content::-webkit-scrollbar-track {
@@ -495,10 +825,78 @@
 }
 
 .kalshi-popup-content::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
-  border-radius: 3px;
+  background: #0000001a;
+  border-radius: 2px;
 }
 
 .kalshi-popup-content::-webkit-scrollbar-thumb:hover {
-  background: #9CA3AF;
+  background: #00000029;
+}
+
+/* ============================================
+   SELECTION BUTTON (floating trigger)
+   ============================================ */
+
+#kalshi-selection-btn {
+  position: absolute;
+  z-index: 2147483646;
+  animation: kalshi-btn-enter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kalshi-btn-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+#kalshi-selection-btn * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.kalshi-find-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  background: #28cc95;
+  color: #fff;
+  border: none;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow:
+    0 2px 8px rgba(40, 204, 149, 0.25),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.kalshi-find-btn:hover {
+  background: #22b884;
+  box-shadow:
+    0 4px 12px rgba(40, 204, 149, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.kalshi-find-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    0 2px 6px rgba(40, 204, 149, 0.2);
+}
+
+.kalshi-find-btn svg {
+  flex-shrink: 0;
+  opacity: 0.9;
 }

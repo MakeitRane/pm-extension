@@ -89,25 +89,35 @@ async function handleMessage(message, sender) {
 
   switch (type) {
     case 'SEARCH_MARKETS': {
-      const apiKey = await getApiKey();
-      const result = await searchMarkets(payload.query, apiKey, payload.limit || 5);
-      return { type: 'SEARCH_RESULTS', payload: result };
+      try {
+        const apiKey = await getApiKey();
+        const result = await searchMarkets(payload.query, apiKey, payload.limit || 5);
+        return { type: 'SEARCH_RESULTS', payload: result };
+      } catch (error) {
+        console.error('SEARCH_MARKETS error:', error);
+        return { type: 'SEARCH_RESULTS', payload: { markets: [], error: error.type || 'UNKNOWN_ERROR' } };
+      }
     }
 
     case 'GET_MARKET_DETAILS': {
-      const apiKey = await getApiKey();
-      const [marketResult, candlesResult] = await Promise.all([
-        getMarketDetails(payload.ticker, apiKey),
-        getMarketCandlesticks(payload.ticker, apiKey)
-      ]);
-      return {
-        type: 'MARKET_DETAILS',
-        payload: {
-          market: marketResult.market,
-          candles: candlesResult.candles,
-          error: marketResult.error
-        }
-      };
+      try {
+        const apiKey = await getApiKey();
+        const [marketResult, candlesResult] = await Promise.all([
+          getMarketDetails(payload.ticker, apiKey),
+          getMarketCandlesticks(payload.ticker, apiKey)
+        ]);
+        return {
+          type: 'MARKET_DETAILS',
+          payload: {
+            market: marketResult.market,
+            candles: candlesResult.candles,
+            error: marketResult.error
+          }
+        };
+      } catch (error) {
+        console.error('GET_MARKET_DETAILS error:', error);
+        return { type: 'MARKET_DETAILS', payload: { market: null, candles: [], error: error.type || 'UNKNOWN_ERROR' } };
+      }
     }
 
     case 'VALIDATE_API_KEY': {
