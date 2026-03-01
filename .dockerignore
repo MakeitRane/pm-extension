@@ -1,0 +1,21 @@
+# Frontend (not needed in backend image)
+src/
+assets/
+docs/
+node_modules/
+
+# Git
+.git
+.gitignore
+
+# Backend dev artifacts
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/.DS_Store
+
+# Misc
+*.md
+.DS_Store
+docker-compose.yml
