@@ -39,6 +39,27 @@
       </ol>
     </div>
 
+    <!-- Advanced Settings -->
+    <div class="popup-advanced">
+      <button class="advanced-toggle" id="advanced-toggle">
+        <span class="advanced-arrow" id="advanced-arrow">&#9654;</span>
+        Advanced Settings
+      </button>
+      <div class="advanced-content" id="advanced-content">
+        <div class="input-group">
+          <label class="input-label">Backend URL</label>
+          <input type="url" class="input-field" id="backend-url-input" placeholder="https://your-backend.up.railway.app">
+          <div class="input-hint">Leave empty to use the default server</div>
+          <div class="input-error" id="backend-url-error"></div>
+        </div>
+        <div class="button-group">
+          <button class="btn btn-primary btn-sm" id="save-url-btn">Save</button>
+          <button class="btn btn-secondary btn-sm" id="reset-url-btn">Reset</button>
+        </div>
+        <div class="success-message" id="url-success-message">Backend URL saved!</div>
+      </div>
+    </div>
+
     <!-- Footer -->
     <div class="popup-footer">
       <a href="https://kalshi.com" target="_blank" class="footer-link">Visit Kalshi</a>

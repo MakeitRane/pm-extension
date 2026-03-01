@@ -240,5 +240,101 @@ function hideError(errorDiv, input) {
   input.classList.remove('error');
 }
 
+/**
+ * Initialize advanced settings (backend URL)
+ */
+async function initAdvancedSettings() {
+  const toggle = document.getElementById('advanced-toggle');
+  const arrow = document.getElementById('advanced-arrow');
+  const content = document.getElementById('advanced-content');
+  const urlInput = document.getElementById('backend-url-input');
+  const saveBtn = document.getElementById('save-url-btn');
+  const resetBtn = document.getElementById('reset-url-btn');
+
+  // Toggle visibility
+  toggle.addEventListener('click', () => {
+    content.classList.toggle('visible');
+    arrow.classList.toggle('open');
+  });
+
+  // Load current URL
+  try {
+    const result = await chrome.storage.sync.get('backend_url');
+    if (result.backend_url) {
+      urlInput.value = result.backend_url;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // Save URL
+  saveBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    const errorDiv = document.getElementById('backend-url-error');
+    const successMsg = document.getElementById('url-success-message');
+
+    hideError(errorDiv, urlInput);
+
+    if (url && !url.match(/^https?:\/\/.+/)) {
+      showError(errorDiv, urlInput, 'Please enter a valid URL (starting with http:// or https://)');
+      return;
+    }
+
+    // If URL provided, verify it's reachable
+    if (url) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Checking...';
+      try {
+        const resp = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(5000) });
+        if (!resp.ok) {
+          showError(errorDiv, urlInput, 'Backend responded but health check failed');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save';
+          return;
+        }
+      } catch {
+        showError(errorDiv, urlInput, 'Could not connect to this URL');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+        return;
+      }
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
+
+    try {
+      if (url) {
+        await chrome.storage.sync.set({ 'backend_url': url });
+      } else {
+        await chrome.storage.sync.remove('backend_url');
+      }
+      successMsg.classList.add('visible');
+      setTimeout(() => successMsg.classList.remove('visible'), 3000);
+    } catch (e) {
+      showError(errorDiv, urlInput, 'Failed to save URL');
+    }
+  });
+
+  // Reset URL
+  resetBtn.addEventListener('click', async () => {
+    urlInput.value = '';
+    const errorDiv = document.getElementById('backend-url-error');
+    hideError(errorDiv, urlInput);
+    try {
+      await chrome.storage.sync.remove('backend_url');
+      const successMsg = document.getElementById('url-success-message');
+      successMsg.textContent = 'Reset to default!';
+      successMsg.classList.add('visible');
+      setTimeout(() => {
+        successMsg.classList.remove('visible');
+        successMsg.textContent = 'Backend URL saved!';
+      }, 3000);
+    } catch (e) {
+      // ignore
+    }
+  });
+}
+
 // Initialize
 init();
+initAdvancedSettings();

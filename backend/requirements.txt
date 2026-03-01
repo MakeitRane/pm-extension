@@ -1,11 +1,13 @@
 flask==3.0.0
 flask-cors==4.0.0
+flask-limiter==3.5.0
+gunicorn==21.2.0
 requests==2.31.0
 python-dotenv==1.0.0
 
 # Gemini API for causal market analysis
-google-genai>=1.0.0
+google-genai==1.61.0
 
 # WebSocket support for real-time price updates
-websockets>=12.0
-cryptography>=41.0.0
+websockets==15.0.1
+cryptography==46.0.4

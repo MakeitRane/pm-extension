@@ -12,6 +12,7 @@ Stage 2 (Causal Analysis): gemma-3-27b-it with GEMINI_API_KEY_2
 """
 
 import json
+import logging
 import re
 import time
 import threading
@@ -19,6 +20,8 @@ from typing import List, Dict, Optional
 from collections import deque
 from google import genai
 from google.genai import errors as genai_errors
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -194,10 +197,13 @@ class RateLimiter:
                 )
 
             # Log successful check
-            print(f"[{self.name}] Rate check passed: "
-                  f"RPM={len(self._minute_requests)+1}/{self.max_rpm}, "
-                  f"TPM={current_tokens + estimated_tokens}/{self.max_tpm}, "
-                  f"RPD={len(self._day_requests)+1}/{self.max_rpd}")
+            logger.info(
+                "[%s] Rate check passed: RPM=%d/%d, TPM=%d/%d, RPD=%d/%d",
+                self.name,
+                len(self._minute_requests) + 1, self.max_rpm,
+                current_tokens + estimated_tokens, self.max_tpm,
+                len(self._day_requests) + 1, self.max_rpd
+            )
 
     def record_request(self, actual_tokens: int) -> None:
         """
@@ -268,7 +274,7 @@ class Stage1Service:
         """
         self.client = genai.Client(api_key=api_key)
         self.rate_limiter = _stage1_rate_limiter
-        print(f"Stage1Service initialized with model: {self.MODEL_NAME}")
+        logger.info("Stage1Service initialized with model: %s", self.MODEL_NAME)
 
     def _handle_api_error(self, error: Exception) -> None:
         """Convert API errors to specific exception types."""
@@ -341,12 +347,16 @@ If no markets are relevant, return: []"""
         estimated_tokens = self.rate_limiter.estimate_tokens(prompt)
 
         try:
-            print(f"\n{'='*60}")
-            print(f"STAGE 1: RELEVANCE FILTER (gemini-3-flash-preview)")
-            print(f"{'='*60}")
-            print(f"Highlighted text: \"{highlighted_text[:100]}{'...' if len(highlighted_text) > 100 else ''}\"")
-            print(f"Total markets: {len(markets)}")
-            print(f"Estimated tokens: {estimated_tokens}")
+            logger.info("=" * 60)
+            logger.info("STAGE 1: RELEVANCE FILTER (gemini-3-flash-preview)")
+            logger.info("=" * 60)
+            logger.info(
+                "Highlighted text: \"%s%s\"",
+                highlighted_text[:100],
+                "..." if len(highlighted_text) > 100 else ""
+            )
+            logger.info("Total markets: %d", len(markets))
+            logger.info("Estimated tokens: %d", estimated_tokens)
 
             # Check rate limits BEFORE making request
             self.rate_limiter.check_limits(estimated_tokens)
@@ -362,36 +372,40 @@ If no markets are relevant, return: []"""
             total_tokens = estimated_tokens + response_tokens
             self.rate_limiter.record_request(total_tokens)
 
-            print(f"\n{'─'*40}")
-            print(f"RESPONSE (Stage 1):")
-            print(f"{'─'*40}")
-            print(response.text[:500] + ('...' if len(response.text) > 500 else ''))
+            logger.info("─" * 40)
+            logger.info("RESPONSE (Stage 1):")
+            logger.info("─" * 40)
+            logger.info(
+                "%s%s",
+                response.text[:500],
+                "..." if len(response.text) > 500 else ""
+            )
 
             # Parse the response
             tickers = self._parse_ticker_list(response.text, markets)
 
-            print(f"\nExtracted {len(tickers)} tickers")
-            print(f"{'='*60}\n")
+            logger.info("Extracted %d tickers", len(tickers))
+            logger.info("=" * 60)
 
             return tickers
 
         except (GeminiRateLimitError, GeminiAuthError, GeminiUnavailableError):
             raise
         except Exception as e:
-            print(f"[Stage1] API error: {e}")
+            logger.error("[Stage1] API error: %s", e)
             self._handle_api_error(e)
 
     def _parse_ticker_list(self, response_text: str, markets: List[Dict]) -> List[str]:
         """Parse Gemini's response to extract ticker list."""
         json_match = re.search(r'\[[\s\S]*?\]', response_text)
         if not json_match:
-            print(f"Could not find JSON array in response")
+            logger.warning("Could not find JSON array in response")
             return []
 
         try:
             tickers = json.loads(json_match.group())
         except json.JSONDecodeError as e:
-            print(f"JSON parse error: {e}")
+            logger.error("JSON parse error: %s", e)
             return []
 
         # Validate tickers exist in our markets
@@ -422,7 +436,7 @@ class Stage2Service:
         """
         self.client = genai.Client(api_key=api_key)
         self.rate_limiter = _stage2_rate_limiter
-        print(f"Stage2Service initialized with model: {self.MODEL_NAME}")
+        logger.info("Stage2Service initialized with model: %s", self.MODEL_NAME)
 
     def _handle_api_error(self, error: Exception) -> None:
         """Convert API errors to specific exception types."""
@@ -527,12 +541,16 @@ If no markets have a meaningful causal relationship, return: []"""
         estimated_tokens = self.rate_limiter.estimate_tokens(prompt)
 
         try:
-            print(f"\n{'='*60}")
-            print(f"STAGE 2: CAUSAL ANALYSIS (gemma-3-27b-it)")
-            print(f"{'='*60}")
-            print(f"Highlighted text: \"{highlighted_text[:100]}{'...' if len(highlighted_text) > 100 else ''}\"")
-            print(f"Candidate markets: {len(markets)}")
-            print(f"Estimated tokens: {estimated_tokens}")
+            logger.info("=" * 60)
+            logger.info("STAGE 2: CAUSAL ANALYSIS (gemma-3-27b-it)")
+            logger.info("=" * 60)
+            logger.info(
+                "Highlighted text: \"%s%s\"",
+                highlighted_text[:100],
+                "..." if len(highlighted_text) > 100 else ""
+            )
+            logger.info("Candidate markets: %d", len(markets))
+            logger.info("Estimated tokens: %d", estimated_tokens)
 
             # CRITICAL: Check rate limits BEFORE making request
             # Especially important for the 14k TPM limit
@@ -549,40 +567,46 @@ If no markets have a meaningful causal relationship, return: []"""
             total_tokens = estimated_tokens + response_tokens
             self.rate_limiter.record_request(total_tokens)
 
-            print(f"\n{'─'*40}")
-            print(f"RESPONSE (Stage 2):")
-            print(f"{'─'*40}")
-            print(response.text[:1000] + ('...' if len(response.text) > 1000 else ''))
+            logger.info("─" * 40)
+            logger.info("RESPONSE (Stage 2):")
+            logger.info("─" * 40)
+            logger.info(
+                "%s%s",
+                response.text[:1000],
+                "..." if len(response.text) > 1000 else ""
+            )
 
             # Parse the response
             results = self._parse_analysis_response(response.text, markets)
 
-            print(f"\nParsed {len(results)} results:")
+            logger.info("Parsed %d results:", len(results))
             for i, r in enumerate(results, 1):
-                print(f"  [{i}] {r.get('ticker')}")
-                print(f"      Hop: {r.get('hop')} | Impact: {r.get('impact_score')} | Dir: {r.get('direction')}")
-                print(f"      Explanation: {r.get('explanation', '')[:80]}...")
-            print(f"{'='*60}\n")
+                logger.info(
+                    "  [%d] %s | Hop: %s | Impact: %s | Dir: %s",
+                    i, r.get('ticker'), r.get('hop'),
+                    r.get('impact_score'), r.get('direction')
+                )
+            logger.info("=" * 60)
 
             return results
 
         except (GeminiRateLimitError, GeminiAuthError, GeminiUnavailableError):
             raise
         except Exception as e:
-            print(f"[Stage2] API error: {e}")
+            logger.error("[Stage2] API error: %s", e)
             self._handle_api_error(e)
 
     def _parse_analysis_response(self, response_text: str, markets: List[Dict]) -> List[Dict]:
         """Parse Gemini's causal analysis response."""
         json_match = re.search(r'\[[\s\S]*?\]', response_text)
         if not json_match:
-            print(f"Could not find JSON array in response")
+            logger.warning("Could not find JSON array in response")
             return []
 
         try:
             results = json.loads(json_match.group())
         except json.JSONDecodeError as e:
-            print(f"JSON parse error: {e}")
+            logger.error("JSON parse error: %s", e)
             return []
 
         # Validate tickers exist in our markets

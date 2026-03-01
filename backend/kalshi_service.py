@@ -5,10 +5,13 @@ Uses REST API for market fetching and WebSocket for real-time price updates
 """
 
 import asyncio
+import logging
 import requests
 import re
 from typing import Optional, List, Dict
 import time
+
+logger = logging.getLogger(__name__)
 
 from gemini_service import (
     GeminiError,
@@ -71,7 +74,7 @@ class KalshiService:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Kalshi API error: {e}")
+            logger.error("Kalshi API error: %s", e)
             raise
 
     def _build_market_about(self, market: Dict) -> str:
@@ -172,7 +175,7 @@ class KalshiService:
                 _event_cache[event_ticker] = event
             return event
         except Exception as e:
-            print(f"Error fetching event {event_ticker}: {e}")
+            logger.error("Error fetching event %s: %s", event_ticker, e)
             return None
 
     def get_series(self, series_ticker: str) -> Optional[Dict]:
@@ -199,7 +202,7 @@ class KalshiService:
                 _series_cache[series_ticker] = series
             return series
         except Exception as e:
-            print(f"Error fetching series {series_ticker}: {e}")
+            logger.error("Error fetching series %s: %s", series_ticker, e)
             return None
 
     def get_market_url(self, market: Dict) -> str:
@@ -355,14 +358,14 @@ class KalshiService:
             and _market_list_cache['data'] is not None
             and _market_list_cache['timestamp'] is not None
             and time.time() - _market_list_cache['timestamp'] < _market_list_cache['ttl']):
-            print(f"Using cached markets ({len(_market_list_cache['data'])} markets)")
+            logger.info("Using cached markets (%d markets)", len(_market_list_cache['data']))
             return _market_list_cache['data']
 
-        print("Fetching fresh markets from Kalshi API...")
+        logger.info("Fetching fresh markets from Kalshi API...")
 
         # Fetch fresh markets
         raw_markets = self.fetch_markets(status='open', exclude_mve=True)
-        print(f"Fetched {len(raw_markets)} markets from Kalshi API")
+        logger.info("Fetched %d markets from Kalshi API", len(raw_markets))
 
         # Filter to only truly open markets
         now = datetime.now(timezone.utc).isoformat()
@@ -377,7 +380,7 @@ class KalshiService:
             if is_open_status and is_not_expired:
                 open_markets.append(market)
 
-        print(f"Filtered to {len(open_markets)} open markets")
+        logger.info("Filtered to %d open markets", len(open_markets))
 
         # Smart deduplication: only dedupe spread/total markets
         # Keep all other markets (championship winners, game winners, etc.)
@@ -398,8 +401,8 @@ class KalshiService:
                 # Keep all non-spread markets
                 deduplicated_markets.append(market)
 
-        print(f"Removed {spread_count} duplicate spread/total markets")
-        print(f"Final market count: {len(deduplicated_markets)}")
+        logger.info("Removed %d duplicate spread/total markets", spread_count)
+        logger.info("Final market count: %d", len(deduplicated_markets))
 
         # Update cache
         _market_list_cache['data'] = deduplicated_markets
@@ -438,10 +441,10 @@ class KalshiService:
             GeminiAuthError: If authentication fails
             GeminiUnavailableError: For other API errors
         """
-        print(f"\n{'='*60}")
-        print(f"MARKET SEARCH")
-        print(f"{'='*60}")
-        print(f"Query: \"{query[:100]}{'...' if len(query) > 100 else ''}\"")
+        logger.info("=" * 60)
+        logger.info("MARKET SEARCH")
+        logger.info("=" * 60)
+        logger.info("Query: \"%s%s\"", query[:100], "..." if len(query) > 100 else "")
 
         # Validate Gemini is configured
         if not self.gemini_service:
@@ -454,14 +457,13 @@ class KalshiService:
         all_markets = self.get_all_open_markets()
 
         if not all_markets:
-            print("No markets available")
+            logger.info("No markets available")
             return []
 
-        print(f"Total available markets: {len(all_markets)}")
+        logger.info("Total available markets: %d", len(all_markets))
 
         # Step 2: Stage 1 (gemini-3-flash-preview) - Filter ALL markets to top 50
-        # Uses high context window model, no pre-filtering needed
-        print("\n--- Stage 1: Relevance Filter (gemini-3-flash-preview) ---")
+        logger.info("--- Stage 1: Relevance Filter (gemini-3-flash-preview) ---")
         top_50_tickers = self.gemini_service.filter_markets_by_title(
             highlighted_text=highlighted_text,
             markets=all_markets,
@@ -469,10 +471,10 @@ class KalshiService:
         )
 
         if not top_50_tickers:
-            print("Gemini found no relevant markets in stage 1")
+            logger.info("Gemini found no relevant markets in stage 1")
             return []
 
-        print(f"Stage 1 returned {len(top_50_tickers)} tickers")
+        logger.info("Stage 1 returned %d tickers", len(top_50_tickers))
 
         # Step 3: Build about strings for the top 50 markets
         ticker_to_market = {m.get('ticker'): m for m in all_markets}
@@ -484,10 +486,10 @@ class KalshiService:
                 market['about'] = self._build_market_about(market)
                 filtered_markets.append(market)
 
-        print(f"Built about strings for {len(filtered_markets)} markets")
+        logger.info("Built about strings for %d markets", len(filtered_markets))
 
         # Step 4: Stage 2 (gemma-3-27b-it) - Analyze for causal relationships
-        print("\n--- Stage 2: Causal Analysis (gemma-3-27b-it) ---")
+        logger.info("--- Stage 2: Causal Analysis (gemma-3-27b-it) ---")
         gemini_results = self.gemini_service.analyze_top_markets(
             highlighted_text=highlighted_text,
             markets=filtered_markets,
@@ -495,10 +497,10 @@ class KalshiService:
         )
 
         if not gemini_results:
-            print("Gemini found no causal relationships in stage 2")
+            logger.info("Gemini found no causal relationships in stage 2")
             return []
 
-        print(f"Stage 2 returned {len(gemini_results)} results")
+        logger.info("Stage 2 returned %d results", len(gemini_results))
 
         # Step 5: Build full market response objects with event data
         results = []
@@ -541,13 +543,18 @@ class KalshiService:
         # Step 7: Group markets by event for better display
         grouped_results = self._group_markets_by_event(results)
 
-        print(f"\n{'='*60}")
-        print(f"FINAL RESULTS: {len(grouped_results)} event groups, {len(results)} markets total")
+        logger.info("=" * 60)
+        logger.info(
+            "FINAL RESULTS: %d event groups, %d markets total",
+            len(grouped_results), len(results)
+        )
         for i, group in enumerate(grouped_results, 1):
-            print(f"  [{i}] {group.get('event_title', 'Unknown')[:50]}")
-            print(f"      Outcomes: {len(group.get('markets', []))}")
-            print(f"      Explanation: {group.get('explanation', '')[:80]}")
-        print(f"{'='*60}\n")
+            logger.info(
+                "  [%d] %s | Outcomes: %d",
+                i, group.get('event_title', 'Unknown')[:50],
+                len(group.get('markets', []))
+            )
+        logger.info("=" * 60)
 
         return grouped_results
 
@@ -623,7 +630,7 @@ class KalshiService:
         try:
             from kalshi_ws import update_markets_with_realtime_prices
 
-            print("Fetching real-time prices via WebSocket...")
+            logger.info("Fetching real-time prices via WebSocket...")
 
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -636,16 +643,16 @@ class KalshiService:
                         timeout
                     )
                 )
-                print("Real-time prices updated")
+                logger.info("Real-time prices updated")
                 return updated_markets
             finally:
                 loop.close()
 
         except ImportError:
-            print("WebSocket module not available, using REST prices")
+            logger.warning("WebSocket module not available, using REST prices")
             return markets
         except Exception as e:
-            print(f"WebSocket price update failed: {e}")
+            logger.error("WebSocket price update failed: %s", e)
             return markets
 
     def get_market_details(self, ticker: str) -> Optional[Dict]:
@@ -665,7 +672,7 @@ class KalshiService:
                 market['market_url'] = self.get_market_url(market)
             return market
         except Exception as e:
-            print(f"Error fetching market details: {e}")
+            logger.error("Error fetching market details: %s", e)
             return None
 
 

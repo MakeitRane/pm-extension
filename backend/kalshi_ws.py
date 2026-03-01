@@ -5,12 +5,15 @@ Handles real-time price updates via WebSocket with RSA-PSS authentication
 
 import asyncio
 import json
+import logging
 import time
 import base64
 from typing import Optional, Dict, List
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
+
+logger = logging.getLogger(__name__)
 
 try:
     import websockets
@@ -102,10 +105,10 @@ class KalshiWebSocketClient:
             except Exception:
                 continue
 
-        print("Error loading private key: could not parse key in any supported PEM format")
-        print("  Ensure RSA_KEY in .env is a valid PEM-encoded RSA private key")
-        print("  PKCS#1 keys use: BEGIN RSA PRIVATE KEY / END RSA PRIVATE KEY")
-        print("  PKCS#8 keys use: BEGIN PRIVATE KEY / END PRIVATE KEY")
+        logger.error("Error loading private key: could not parse key in any supported PEM format")
+        logger.error("  Ensure RSA_KEY in .env is a valid PEM-encoded RSA private key")
+        logger.error("  PKCS#1 keys use: BEGIN RSA PRIVATE KEY / END RSA PRIVATE KEY")
+        logger.error("  PKCS#8 keys use: BEGIN PRIVATE KEY / END PRIVATE KEY")
         return None
 
     def _next_message_id(self) -> int:
@@ -149,11 +152,11 @@ class KalshiWebSocketClient:
             True if connection successful, False otherwise
         """
         if websockets is None:
-            print("websockets library not installed")
+            logger.error("websockets library not installed")
             return False
 
         if not self.private_key:
-            print("Private key not available for WebSocket authentication")
+            logger.error("Private key not available for WebSocket authentication")
             return False
 
         try:
@@ -173,10 +176,10 @@ class KalshiWebSocketClient:
                     ping_interval=20,
                     ping_timeout=10
                 )
-            print(f"WebSocket connected to {self.ws_url}")
+            logger.info("WebSocket connected to %s", self.ws_url)
             return True
         except Exception as e:
-            print(f"WebSocket connection failed: {e}")
+            logger.error("WebSocket connection failed: %s", e)
             self.ws = None
             return False
 
@@ -192,7 +195,7 @@ class KalshiWebSocketClient:
             True if subscription successful
         """
         if not self.ws:
-            print("WebSocket not connected")
+            logger.warning("WebSocket not connected")
             return False
 
         msg = {
@@ -215,10 +218,10 @@ class KalshiWebSocketClient:
 
             if data.get("type") == "subscribed":
                 self.subscribed = True
-                print(f"Subscribed to channels: {channels}")
+                logger.info("Subscribed to channels: %s", channels)
                 return True
             elif data.get("type") == "error":
-                print(f"Subscription error: {data}")
+                logger.error("Subscription error: %s", data)
                 return False
             else:
                 # Might be a different message, still consider subscribed
@@ -227,10 +230,10 @@ class KalshiWebSocketClient:
                 return True
 
         except asyncio.TimeoutError:
-            print("Subscription timeout")
+            logger.warning("Subscription timeout")
             return False
         except Exception as e:
-            print(f"Subscription failed: {e}")
+            logger.error("Subscription failed: %s", e)
             return False
 
     async def listen_for_updates(self, timeout: float = 3.0):
@@ -261,7 +264,7 @@ class KalshiWebSocketClient:
                     continue
 
         except Exception as e:
-            print(f"Error listening for updates: {e}")
+            logger.error("Error listening for updates: %s", e)
 
     def _handle_message(self, data: Dict):
         """
@@ -297,10 +300,10 @@ class KalshiWebSocketClient:
 
         elif msg_type == "error":
             error = data.get("msg", {})
-            print(f"WebSocket error: code={error.get('code')}, message={error.get('message')}")
+            logger.error("WebSocket error: code=%s, message=%s", error.get('code'), error.get('message'))
 
         elif msg_type == "subscribed":
-            print(f"Subscription confirmed: {data.get('msg', {}).get('channel')}")
+            logger.info("Subscription confirmed: %s", data.get('msg', {}).get('channel'))
 
         # Ignore other message types (pong, etc.)
 
@@ -309,9 +312,9 @@ class KalshiWebSocketClient:
         if self.ws:
             try:
                 await self.ws.close()
-                print("WebSocket disconnected")
+                logger.info("WebSocket disconnected")
             except Exception as e:
-                print(f"Error disconnecting: {e}")
+                logger.error("Error disconnecting: %s", e)
             finally:
                 self.ws = None
                 self.subscribed = False
@@ -364,7 +367,7 @@ async def update_markets_with_realtime_prices(
         Updated market list
     """
     if not api_key_id or not private_key_pem:
-        print("WebSocket auth not configured, skipping real-time updates")
+        logger.info("WebSocket auth not configured, skipping real-time updates")
         return markets
 
     if not markets:
@@ -394,7 +397,7 @@ async def update_markets_with_realtime_prices(
         return client.apply_updates_to_markets(markets)
 
     except Exception as e:
-        print(f"Error updating prices via WebSocket: {e}")
+        logger.error("Error updating prices via WebSocket: %s", e)
         return markets
 
     finally:

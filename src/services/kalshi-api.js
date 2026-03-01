@@ -4,9 +4,41 @@
  * and direct Kalshi API calls for market details
  */
 
-// Backend URL - change this if running on different port/host
-const BACKEND_URL = 'http://localhost:5001';
+// Default backend URL — will be replaced with Railway production URL after first deploy
+const DEFAULT_BACKEND_URL = 'http://localhost:5001';
 const KALSHI_API_URL = 'https://api.elections.kalshi.com/trade-api/v2';
+
+// Cached backend URL (loaded from storage on first use)
+let _cachedBackendUrl = null;
+
+/**
+ * Get the backend URL from storage, falling back to the default.
+ * Caches the value after first read.
+ * @returns {Promise<string>}
+ */
+async function getBackendUrl() {
+  if (_cachedBackendUrl !== null) {
+    return _cachedBackendUrl;
+  }
+  try {
+    const result = await chrome.storage.sync.get('backend_url');
+    _cachedBackendUrl = result.backend_url || DEFAULT_BACKEND_URL;
+  } catch {
+    _cachedBackendUrl = DEFAULT_BACKEND_URL;
+  }
+  return _cachedBackendUrl;
+}
+
+// Invalidate cache when storage changes
+try {
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.backend_url) {
+      _cachedBackendUrl = null;
+    }
+  });
+} catch {
+  // Not in extension context (e.g. tests)
+}
 
 /**
  * Error types for categorized error handling
@@ -54,7 +86,8 @@ export function getErrorMessage(errorType) {
  * @returns {Promise<object>}
  */
 async function backendRequest(endpoint, options = {}) {
-  const url = `${BACKEND_URL}${endpoint}`;
+  const backendUrl = await getBackendUrl();
+  const url = `${backendUrl}${endpoint}`;
 
   try {
     const response = await fetch(url, {

@@ -6,7 +6,8 @@
 const STORAGE_KEYS = {
   API_KEY: 'kalshi_api_key',
   USER_MODE: 'user_mode', // 'authenticated' | 'free' | 'new'
-  FIRST_USE: 'first_use_completed'
+  FIRST_USE: 'first_use_completed',
+  BACKEND_URL: 'backend_url'
 };
 
 /**
@@ -118,6 +119,51 @@ export async function isFirstUse() {
   } catch (error) {
     console.error('Error checking first use:', error);
     return true;
+  }
+}
+
+/**
+ * Get the stored backend URL
+ * @returns {Promise<string|null>}
+ */
+export async function getBackendUrl() {
+  try {
+    const result = await chrome.storage.sync.get(STORAGE_KEYS.BACKEND_URL);
+    return result[STORAGE_KEYS.BACKEND_URL] || null;
+  } catch (error) {
+    console.error('Error getting backend URL:', error);
+    return null;
+  }
+}
+
+/**
+ * Store the backend URL
+ * @param {string} url - The backend URL
+ * @returns {Promise<boolean>}
+ */
+export async function setBackendUrl(url) {
+  try {
+    await chrome.storage.sync.set({
+      [STORAGE_KEYS.BACKEND_URL]: url
+    });
+    return true;
+  } catch (error) {
+    console.error('Error setting backend URL:', error);
+    return false;
+  }
+}
+
+/**
+ * Remove the stored backend URL (resets to default)
+ * @returns {Promise<boolean>}
+ */
+export async function removeBackendUrl() {
+  try {
+    await chrome.storage.sync.remove(STORAGE_KEYS.BACKEND_URL);
+    return true;
+  } catch (error) {
+    console.error('Error removing backend URL:', error);
+    return false;
   }
 }
 

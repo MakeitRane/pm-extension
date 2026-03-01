@@ -270,3 +270,58 @@ kbd {
 .success-message.visible {
   display: block;
 }
+
+/* Advanced Settings */
+.popup-advanced {
+  margin-bottom: 16px;
+}
+
+.advanced-toggle {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.advanced-toggle:hover {
+  color: #1A1A1A;
+}
+
+.advanced-arrow {
+  font-size: 8px;
+  transition: transform 150ms ease;
+  display: inline-block;
+}
+
+.advanced-arrow.open {
+  transform: rotate(90deg);
+}
+
+.advanced-content {
+  display: none;
+  margin-top: 10px;
+  padding: 12px;
+  background: #F8F9FA;
+  border-radius: 8px;
+}
+
+.advanced-content.visible {
+  display: block;
+}
+
+.input-hint {
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-top: 4px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
